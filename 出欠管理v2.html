@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>誠心会拳法 浅井道場 出欠管理</title>
+<style>
+  :root {
+    --navy: #1a2744;
+    --red: #c0392b;
+    --gold: #c9a84c;
+    --bg: #f4f2ee;
+    --white: #ffffff;
+    --gray: #888;
+    --light: #e8e4dc;
+    --present: #27ae60;
+    --absent: #e74c3c;
+    --radius: 12px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body { font-family: 'Hiragino Kaku Gothic ProN', 'ヒラギノ角ゴ ProN', Meiryo, sans-serif; background: var(--bg); min-height: 100vh; }
+
+  /* ヘッダー */
+  header {
+    background: var(--navy);
+    padding: 14px 16px 10px;
+    position: sticky; top: 0; z-index: 100;
+    box-shadow: 0 2px 8px rgba(0,0,0,.3);
+  }
+  .header-top { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .logo { font-size: 11px; color: var(--gold); letter-spacing: .05em; line-height: 1.4; }
+  .logo strong { font-size: 15px; display: block; color: #fff; }
+  .date-badge {
+    margin-left: auto;
+    background: rgba(255,255,255,.12);
+    border: 1px solid rgba(201,168,76,.4);
+    border-radius: 8px;
+    padding: 5px 10px;
+    font-size: 12px; color: var(--gold); white-space: nowrap;
+  }
+
+  /* 支部選択 */
+  .branch-scroll { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; scrollbar-width: none; }
+  .branch-scroll::-webkit-scrollbar { display: none; }
+  .branch-btn {
+    flex-shrink: 0;
+    background: rgba(255,255,255,.1);
+    border: 1px solid rgba(255,255,255,.2);
+    border-radius: 20px;
+    color: rgba(255,255,255,.7);
+    padding: 5px 14px;
+    font-size: 13px; cursor: pointer;
+    transition: all .2s;
+  }
+  .branch-btn.active {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: var(--navy);
+    font-weight: 700;
+  }
+
+  /* クラスタブ */
+  .class-tabs {
+    display: flex; gap: 0;
+    background: var(--white);
+    border-bottom: 2px solid var(--light);
+    padding: 0 16px;
+    overflow-x: auto; scrollbar-width: none;
+  }
+  .class-tabs::-webkit-scrollbar { display: none; }
+  .class-tab {
+    padding: 11px 18px;
+    font-size: 14px; font-weight: 600;
+    color: var(--gray); cursor: pointer;
+    border-bottom: 3px solid transparent;
+    margin-bottom: -2px; white-space: nowrap;
+    transition: all .2s;
+  }
+  .class-tab.active { color: var(--navy); border-bottom-color: var(--red); }
+  .class-tab .count {
+    display: inline-block;
+    background: var(--light); border-radius: 10px;
+    font-size: 11px; padding: 1px 7px; margin-left: 5px;
+    font-weight: 700; color: var(--navy);
+  }
+  .class-tab.active .count { background: var(--red); color: #fff; }
+
+  /* メインコンテンツ */
+  main { padding: 12px 14px 100px; }
+
+  /* 出欠サマリー */
+  .summary {
+    display: grid; grid-template-columns: 1fr 1fr 1fr;
+    gap: 8px; margin-bottom: 14px;
+  }
+  .summary-card {
+    background: var(--white); border-radius: var(--radius);
+    padding: 10px; text-align: center;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08);
+  }
+  .summary-num { font-size: 26px; font-weight: 800; line-height: 1; }
+  .summary-label { font-size: 11px; color: var(--gray); margin-top: 2px; }
+  .s-total .summary-num { color: var(--navy); }
+  .s-present .summary-num { color: var(--present); }
+  .s-absent .summary-num { color: var(--absent); }
+
+  /* 一括ボタン */
+  .bulk-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .bulk-btn {
+    flex: 1; padding: 9px;
+    border: none; border-radius: 8px;
+    font-size: 13px; font-weight: 700; cursor: pointer;
+    transition: opacity .15s;
+  }
+  .bulk-btn:active { opacity: .75; }
+  .bulk-present { background: var(--present); color: #fff; }
+  .bulk-absent { background: #f0f0f0; color: #555; }
+  .bulk-reset { background: #f0f0f0; color: #555; }
+
+  /* 生徒カード */
+  .student-grid { display: flex; flex-direction: column; gap: 8px; }
+  .student-card {
+    background: var(--white);
+    border-radius: var(--radius);
+    display: flex; align-items: center;
+    padding: 12px 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.07);
+    border-left: 4px solid var(--light);
+    transition: all .15s;
+    cursor: pointer;
+    user-select: none;
+  }
+  .student-card.present { border-left-color: var(--present); background: #f0faf4; }
+  .student-card.absent { border-left-color: var(--absent); background: #fff5f5; }
+  .student-card:active { transform: scale(.98); }
+
+  .student-info { flex: 1; }
+  .student-name { font-size: 16px; font-weight: 700; color: var(--navy); letter-spacing: .02em; }
+  .student-id { font-size: 11px; color: var(--gray); margin-top: 2px; }
+
+  .status-btn {
+    width: 52px; height: 36px;
+    border: none; border-radius: 8px;
+    font-size: 18px; font-weight: 800;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: all .15s;
+  }
+  .status-btn.none { background: var(--light); color: var(--gray); }
+  .status-btn.present { background: var(--present); color: #fff; }
+  .status-btn.absent { background: var(--absent); color: #fff; }
+
+  /* 空のステート */
+  .empty { text-align: center; padding: 60px 20px; color: var(--gray); }
+  .empty-icon { font-size: 48px; margin-bottom: 12px; }
+
+  /* 送信ボタン */
+  .submit-bar {
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: var(--white);
+    padding: 12px 16px 20px;
+    box-shadow: 0 -2px 12px rgba(0,0,0,.1);
+    display: flex; gap: 10px; align-items: center;
+  }
+  .submit-info { font-size: 12px; color: var(--gray); flex: 1; }
+  .submit-info strong { color: var(--navy); font-size: 14px; }
+  .submit-btn {
+    background: var(--navy); color: #fff;
+    border: none; border-radius: 10px;
+    padding: 12px 20px; font-size: 14px; font-weight: 700;
+    cursor: pointer; white-space: nowrap;
+    transition: opacity .15s;
+  }
+  .submit-btn:active { opacity: .8; }
+  .submit-btn:disabled { background: var(--gray); }
+
+  /* モーダル */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.5); z-index: 200;
+    align-items: flex-end; justify-content: center;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--white); border-radius: 20px 20px 0 0;
+    padding: 20px 20px 40px; width: 100%; max-width: 480px;
+    animation: slideUp .25s ease;
+  }
+  @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+  .modal h3 { font-size: 16px; color: var(--navy); margin-bottom: 16px; text-align: center; }
+  .modal-list { max-height: 50vh; overflow-y: auto; }
+  .modal-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--light); font-size: 14px; }
+  .modal-row:last-child { border-bottom: none; }
+  .modal-present { color: var(--present); font-weight: 700; }
+  .modal-absent { color: var(--absent); }
+  .modal-btns { display: flex; gap: 10px; margin-top: 16px; }
+  .modal-cancel { flex: 1; padding: 12px; border: 2px solid var(--light); border-radius: 10px; background: none; font-size: 14px; cursor: pointer; }
+  .modal-confirm { flex: 2; padding: 12px; background: var(--navy); color: #fff; border: none; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; }
+
+  /* 完了画面 */
+  .done-screen {
+    display: none; position: fixed; inset: 0;
+    background: var(--navy); z-index: 300;
+    flex-direction: column; align-items: center; justify-content: center;
+    color: #fff;
+  }
+  .done-screen.show { display: flex; }
+  .done-icon { font-size: 72px; margin-bottom: 20px; }
+  .done-title { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+  .done-sub { font-size: 14px; color: rgba(255,255,255,.7); margin-bottom: 32px; text-align: center; }
+  .done-close { background: var(--gold); color: var(--navy); border: none; border-radius: 12px; padding: 14px 36px; font-size: 16px; font-weight: 800; cursor: pointer; }
+
+  /* 管理ボタン */
+  .admin-open-btn {
+    background: rgba(26,39,68,.08); border: 1px solid var(--light);
+    border-radius: 10px; padding: 6px 10px; font-size: 18px;
+    cursor: pointer; line-height: 1; flex-shrink: 0;
+  }
+
+  /* 管理オーバーレイ */
+  .admin-overlay {
+    display: none; position: fixed; inset: 0; z-index: 400;
+    background: rgba(0,0,0,.45);
+  }
+  .admin-overlay.show { display: block; }
+  .admin-panel {
+    position: absolute; bottom: 0; left: 0; right: 0;
+    background: var(--bg); border-radius: 20px 20px 0 0;
+    max-height: 90vh; overflow-y: auto;
+    padding: 20px 16px 40px;
+    animation: slideUp .25s ease;
+  }
+  .admin-header { display: flex; align-items: center; margin-bottom: 18px; }
+  .admin-header h2 { font-size: 17px; color: var(--navy); flex: 1; }
+  .admin-close { background: var(--light); border: none; border-radius: 50%; width: 32px; height: 32px; font-size: 16px; cursor: pointer; }
+  .admin-section { margin-bottom: 24px; }
+  .admin-section-title { font-size: 13px; font-weight: 700; color: var(--gray); letter-spacing: .05em; margin-bottom: 10px; }
+  .admin-form { display: flex; flex-direction: column; gap: 8px; }
+  .admin-input {
+    width: 100%; padding: 10px 12px; border: 1.5px solid var(--light);
+    border-radius: 8px; font-size: 14px; background: var(--white);
+    font-family: inherit;
+  }
+  .admin-input:focus { outline: none; border-color: var(--navy); }
+  .admin-add-btn {
+    background: var(--navy); color: #fff; border: none;
+    border-radius: 8px; padding: 11px; font-size: 14px;
+    font-weight: 700; cursor: pointer;
+  }
+
+  /* 会員リスト */
+  .admin-list { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; max-height: 45vh; overflow-y: auto; }
+  .admin-member-row {
+    background: var(--white); border-radius: 10px;
+    padding: 10px 12px; display: flex; align-items: center;
+    gap: 10px; box-shadow: 0 1px 3px rgba(0,0,0,.06);
+  }
+  .admin-member-info { flex: 1; }
+  .admin-member-name { font-size: 14px; font-weight: 700; color: var(--navy); }
+  .admin-member-sub { font-size: 11px; color: var(--gray); margin-top: 1px; }
+  .admin-edit-btn { background: var(--navy); color: #fff; border: none; border-radius: 7px; padding: 6px 12px; font-size: 12px; cursor: pointer; }
+  .admin-del-btn { background: var(--absent); color: #fff; border: none; border-radius: 7px; padding: 6px 10px; font-size: 12px; cursor: pointer; }
+
+  /* 編集モーダル */
+  .edit-overlay {
+    display: none; position: fixed; inset: 0; z-index: 500;
+    background: rgba(0,0,0,.5); align-items: center; justify-content: center;
+  }
+  .edit-overlay.show { display: flex; }
+  .edit-modal {
+    background: var(--white); border-radius: 16px;
+    padding: 24px 20px; width: calc(100% - 40px); max-width: 400px;
+    animation: slideUp .2s ease;
+  }
+  .edit-modal h3 { font-size: 16px; color: var(--navy); margin-bottom: 16px; }
+  .edit-row { margin-bottom: 10px; }
+  .edit-row label { font-size: 12px; color: var(--gray); display: block; margin-bottom: 4px; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-top">
+    <div class="logo">
+      誠心会拳法<br>
+      <strong>浅井道場 出欠管理</strong>
+    </div>
+    <div class="date-badge" id="dateBadge"></div>
+  </div>
+  <div class="branch-scroll" id="branchScroll"></div>
+</header>
+
+<div class="class-tabs" id="classTabs"></div>
+
+<main>
+  <div class="summary">
+    <div class="summary-card s-total">
+      <div class="summary-num" id="sumTotal">0</div>
+      <div class="summary-label">総人数</div>
+    </div>
+    <div class="summary-card s-present">
+      <div class="summary-num" id="sumPresent">0</div>
+      <div class="summary-label">出席</div>
+    </div>
+    <div class="summary-card s-absent">
+      <div class="summary-num" id="sumAbsent">0</div>
+      <div class="summary-label">未確認</div>
+    </div>
+  </div>
+
+  <div class="bulk-row">
+    <button class="bulk-btn bulk-present" onclick="bulkMark('present')">◯ 全員出席</button>
+    <button class="bulk-btn bulk-absent" onclick="bulkMark('absent')">× 全員欠席</button>
+    <button class="bulk-btn bulk-reset" onclick="bulkMark('none')">リセット</button>
+  </div>
+
+  <div class="student-grid" id="studentGrid"></div>
+</main>
+
+<div class="submit-bar">
+  <button class="admin-open-btn" onclick="openAdmin()">⚙️<br><span style="font-size:10px">管理</span></button>
+  <div class="submit-info">
+    <strong id="submitInfo">支部・クラスを選択</strong><br>
+    出席確認後に送信してください
+  </div>
+  <button class="submit-btn" id="submitBtn" onclick="showModal()" disabled>送信</button>
+</div>
+
+<!-- 確認モーダル -->
+<div class="modal-overlay" id="modalOverlay" onclick="hideModal(event)">
+  <div class="modal">
+    <h3 id="modalTitle">出席確認</h3>
+    <div class="modal-list" id="modalList"></div>
+    <div class="modal-btns">
+      <button class="modal-cancel" onclick="hideModal()">戻る</button>
+      <button class="modal-confirm" onclick="submitRecord()">記録する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 管理画面 -->
+<div class="admin-overlay" id="adminOverlay">
+  <div class="admin-panel">
+    <div class="admin-header">
+      <h2>⚙️ 会員管理</h2>
+      <button class="admin-close" onclick="closeAdmin()">✕</button>
+    </div>
+
+    <!-- 新規追加フォーム -->
+    <div class="admin-section">
+      <h3 class="admin-section-title">＋ 新規追加</h3>
+      <div class="admin-form">
+        <input class="admin-input" id="newId" type="number" placeholder="会員番号">
+        <input class="admin-input" id="newName" type="text" placeholder="氏名（例：山田　太郎）">
+        <select class="admin-input" id="newBranch">
+          <option value="">支部を選択</option>
+          <option>佐織</option><option>名南</option><option>春日井</option>
+          <option>名和</option><option>大高</option><option>東海木曜</option><option>東海土曜</option>
+        </select>
+        <select class="admin-input" id="newCls">
+          <option value="">クラスを選択</option>
+          <option>1部</option><option>2部</option><option>3部</option>
+          <option>指導員</option><option>指導補</option>
+        </select>
+        <button class="admin-add-btn" onclick="addMember()">追加する</button>
+      </div>
+    </div>
+
+    <!-- 検索・編集 -->
+    <div class="admin-section">
+      <h3 class="admin-section-title">✏️ 検索・編集・退会</h3>
+      <input class="admin-input" id="searchInput" type="text" placeholder="名前または会員番号で検索" oninput="renderAdminList()">
+      <div class="admin-list" id="adminList"></div>
+    </div>
+  </div>
+</div>
+
+<!-- 編集モーダル -->
+<div class="edit-overlay" id="editOverlay" onclick="closeEdit(event)">
+  <div class="edit-modal">
+    <h3>会員情報の編集</h3>
+    <input type="hidden" id="editId">
+    <div class="edit-row">
+      <label>会員番号</label>
+      <input class="admin-input" id="editNum" type="text">
+    </div>
+    <div class="edit-row">
+      <label>氏名</label>
+      <input class="admin-input" id="editName" type="text">
+    </div>
+    <div class="edit-row">
+      <label>支部</label>
+      <select class="admin-input" id="editBranch">
+        <option>佐織</option><option>名南</option><option>春日井</option>
+        <option>名和</option><option>大高</option><option>東海木曜</option><option>東海土曜</option>
+      </select>
+    </div>
+    <div class="edit-row">
+      <label>クラス</label>
+      <select class="admin-input" id="editCls">
+        <option>1部</option><option>2部</option><option>3部</option>
+        <option>指導員</option><option>指導補</option>
+      </select>
+    </div>
+    <div class="modal-btns" style="margin-top:16px">
+      <button class="modal-cancel" onclick="closeEdit()">キャンセル</button>
+      <button class="modal-confirm" onclick="saveMember()">保存する</button>
+    </div>
+  </div>
+</div>
+
+<!-- 完了画面 -->
+<div class="done-screen" id="doneScreen">
+  <div class="done-icon">✅</div>
+  <div class="done-title">記録完了！</div>
+  <div class="done-sub" id="doneSub"></div>
+  <button class="done-close" onclick="closeDone()">次の稽古へ</button>
+</div>
+
+<script>
+const MEMBERS = [{"id":"16539","branch":"佐織","name":"沖野　杏平","cls":"3部"},{"id":"16540","branch":"佐織","name":"則竹　一輝","cls":"3部"},{"id":"18503","branch":"佐織","name":"水谷　文彦","cls":"3部"},{"id":"19702","branch":"佐織","name":"戸田　丈路","cls":"3部"},{"id":"22415","branch":"佐織","name":"諸本　零奈","cls":"指導員"},{"id":"29611","branch":"佐織","name":"眞野　陸雄","cls":"2部"},{"id":"30927","branch":"佐織","name":"桑村　愛鷹","cls":"2部"},{"id":"34509","branch":"佐織","name":"吉田　伊吹","cls":"2部"},{"id":"35808","branch":"佐織","name":"伊藤　日向胡","cls":"2部"},{"id":"36404","branch":"佐織","name":"原口　一鴻","cls":"2部"},{"id":"37202","branch":"佐織","name":"小森園　陸","cls":"3部"},{"id":"37504","branch":"佐織","name":"柴田　大夢","cls":"2部"},{"id":"37705","branch":"佐織","name":"寺本　悠真","cls":"1部"},{"id":"38312","branch":"佐織","name":"三輪　龍生","cls":"1部"},{"id":"39103","branch":"佐織","name":"坪内　新汰","cls":"1部"},{"id":"39604","branch":"佐織","name":"吉田　芽依","cls":"2部"},{"id":"41710","branch":"佐織","name":"仲平　日輪","cls":"1部"},{"id":"42207","branch":"佐織","name":"三輪　一葵","cls":"1部"},{"id":"42312","branch":"佐織","name":"浅野　圭佑","cls":"1部"},{"id":"42407","branch":"佐織","name":"寺本　柚葉","cls":"1部"},{"id":"43404","branch":"佐織","name":"大竹　隆一","cls":"3部"},{"id":"43906","branch":"佐織","name":"渡邉　勇人","cls":"2部"},{"id":"15467","branch":"名南","name":"細田　裕介","cls":"3部"},{"id":"15523","branch":"名南","name":"竹内　久司","cls":"3部"},{"id":"15915","branch":"名南","name":"後藤　一馬","cls":"3部"},{"id":"18318","branch":"名南","name":"竹内　善基","cls":"3部"},{"id":"19111","branch":"名南","name":"西川　琉健","cls":"3部"},{"id":"20231","branch":"名南","name":"森　幹太","cls":"3部"},{"id":"25111","branch":"名南","name":"川上　聖羽","cls":"3部"},{"id":"25113","branch":"名南","name":"中西　純太","cls":"3部"},{"id":"25114","branch":"名南","name":"中西　亮太","cls":"3部"},{"id":"25914","branch":"名南","name":"河田　梓沙","cls":"2部"},{"id":"27512","branch":"名南","name":"木田　一之介","cls":"3部"},{"id":"27706","branch":"名南","name":"神谷　颯人","cls":"3部"},{"id":"27816","branch":"名南","name":"辻井　暖","cls":"2部"},{"id":"28515","branch":"名南","name":"河田　野杏","cls":"2部"},{"id":"28803","branch":"名南","name":"河田　麻鈴","cls":"2部"},{"id":"30411","branch":"名南","name":"中村　竜斗","cls":"3部"},{"id":"31307","branch":"名南","name":"横山　ちひろ","cls":"2部"},{"id":"34308","branch":"名南","name":"菊地　寿樹也","cls":"3部"},{"id":"34905","branch":"名南","name":"福田　怜央","cls":"2部"},{"id":"35106","branch":"名南","name":"佐々木　颯太","cls":"2部"},{"id":"36306","branch":"名南","name":"竹内　愛子","cls":"2部"},{"id":"36407","branch":"名南","name":"山口　晄誠","cls":"2部"},{"id":"36510","branch":"名南","name":"松下　虎次郎","cls":"2部"},{"id":"36511","branch":"名南","name":"澤田　賢太","cls":"2部"},{"id":"37010","branch":"名南","name":"山田　咲人","cls":"2部"},{"id":"37506","branch":"名南","name":"各務　翔陽","cls":"2部"},{"id":"37804","branch":"名南","name":"中村　奏仁","cls":"2部"},{"id":"38015","branch":"名南","name":"片山　倖志","cls":"2部"},{"id":"38606","branch":"名南","name":"姜　鷗蕊","cls":"1部"},{"id":"39212","branch":"名南","name":"堀　開智","cls":"1部"},{"id":"39213","branch":"名南","name":"堀　貴尋","cls":"1部"},{"id":"39407","branch":"名南","name":"島村　爽汰","cls":"2部"},{"id":"40510","branch":"名南","name":"久保　穂夏","cls":"1部"},{"id":"40604","branch":"名南","name":"グエン　ナミ","cls":"1部"},{"id":"40605","branch":"名南","name":"グエン　マイカ","cls":"1部"},{"id":"41013","branch":"名南","name":"角田　隆裕","cls":"2部"},{"id":"41015","branch":"名南","name":"グエンフー　ギーア","cls":"3部"},{"id":"41113","branch":"名南","name":"島村　海希","cls":"2部"},{"id":"41503","branch":"名南","name":"稲生　亜矢子","cls":"1部"},{"id":"41711","branch":"名南","name":"中村　美月季","cls":"2部"},{"id":"41911","branch":"名南","name":"岡田　結輝","cls":"1部"},{"id":"42208","branch":"名南","name":"鈴木　花奏","cls":"1部"},{"id":"42603","branch":"名南","name":"中尾　茉叶那","cls":"2部"},{"id":"42604","branch":"名南","name":"中尾　莉叶那","cls":"1部"},{"id":"42806","branch":"名南","name":"川島　ゆい","cls":"2部"},{"id":"42807","branch":"名南","name":"川島　あん","cls":"2部"},{"id":"42808","branch":"名南","name":"蟹江　光汰","cls":"3部"},{"id":"42908","branch":"名南","name":"鈴木　聖奈","cls":"2部"},{"id":"43302","branch":"名南","name":"加藤　立規","cls":"1部"},{"id":"43303","branch":"名南","name":"加藤　羽結","cls":"1部"},{"id":"43405","branch":"名南","name":"吉武　海仁","cls":"1部"},{"id":"43406","branch":"名南","name":"堀江　禮央","cls":"1部"},{"id":"43507","branch":"名南","name":"伊藤　蒼葉","cls":"1部"},{"id":"43508","branch":"名南","name":"富永　ちよ","cls":"2部"},{"id":"43509","branch":"名南","name":"富永　三葉","cls":"2部"},{"id":"43510","branch":"名南","name":"田川　咲花","cls":"2部"},{"id":"16308","branch":"春日井","name":"天野　薫","cls":"指導補"},{"id":"21108","branch":"春日井","name":"竹内　大登","cls":"指導補"},{"id":"24705","branch":"春日井","name":"乾　陸斗","cls":"2部"},{"id":"31015","branch":"春日井","name":"大津　煌冴","cls":"2部"},{"id":"34513","branch":"春日井","name":"樋口　功清","cls":"2部"},{"id":"37011","branch":"春日井","name":"長瀬　亮徳","cls":"2部"},{"id":"37324","branch":"春日井","name":"祖父江　太雅","cls":"2部"},{"id":"38104","branch":"春日井","name":"坂井　奏太","cls":"2部"},{"id":"39215","branch":"春日井","name":"松岡　由佳","cls":"2部"},{"id":"39216","branch":"春日井","name":"樋口　万桜","cls":"2部"},{"id":"39217","branch":"春日井","name":"吉川　絢翔","cls":"1部"},{"id":"39408","branch":"春日井","name":"川渡　大輝","cls":"1部"},{"id":"39511","branch":"春日井","name":"野原　伊吹","cls":"1部"},{"id":"39512","branch":"春日井","name":"大仁田　一喜","cls":"2部"},{"id":"39809","branch":"春日井","name":"堀尾　朔巳","cls":"2部"},{"id":"39906","branch":"春日井","name":"武田　遥基","cls":"2部"},{"id":"40805","branch":"春日井","name":"與儀　心咲","cls":"2部"},{"id":"42001","branch":"春日井","name":"菅原　れんか","cls":"2部"},{"id":"42408","branch":"春日井","name":"吉川　結翔","cls":"1部"},{"id":"43605","branch":"春日井","name":"三島　一輝","cls":"1部"},{"id":"43606","branch":"春日井","name":"武山　航大","cls":"1部"},{"id":"43705","branch":"春日井","name":"福田　栞大","cls":"1部"},{"id":"43706","branch":"春日井","name":"福田　紬葵","cls":"1部"},{"id":"15715","branch":"名和","name":"下條　雅則","cls":"指導員"},{"id":"20119","branch":"名和","name":"鈴木　寿総","cls":"2部"},{"id":"21017","branch":"名和","name":"加藤　万季","cls":"2部"},{"id":"21221","branch":"名和","name":"山下　竜弘","cls":"2部"},{"id":"24208","branch":"名和","name":"富田　悠斗","cls":"2部"},{"id":"26016","branch":"名和","name":"加藤　拓実","cls":"2部"},{"id":"27221","branch":"名和","name":"本多　蓮","cls":"指導員"},{"id":"28513","branch":"名和","name":"竹内　愛華","cls":"2部"},{"id":"28611","branch":"名和","name":"植山　悠登","cls":"2部"},{"id":"28612","branch":"名和","name":"植山　拓真","cls":"2部"},{"id":"30702","branch":"名和","name":"早川　健太","cls":"2部"},{"id":"31120","branch":"名和","name":"荒谷　亮之介","cls":"2部"},{"id":"31913","branch":"名和","name":"竹岡　陽平","cls":"2部"},{"id":"32018","branch":"名和","name":"竹本　昊功","cls":"2部"},{"id":"32315","branch":"名和","name":"成田　柚紀","cls":"2部"},{"id":"33107","branch":"名和","name":"嶋崎　瑛一","cls":"2部"},{"id":"33606","branch":"名和","name":"鈴木　優太","cls":"2部"},{"id":"34203","branch":"名和","name":"木村　明大","cls":"2部"},{"id":"34309","branch":"名和","name":"菊地　美莉優","cls":"2部"},{"id":"34414","branch":"名和","name":"古谷　一翔","cls":"2部"},{"id":"34611","branch":"名和","name":"玉城　悠羽","cls":"2部"},{"id":"34706","branch":"名和","name":"鷹見　一以","cls":"2部"},{"id":"35002","branch":"名和","name":"近藤　煌牙","cls":"2部"},{"id":"35305","branch":"名和","name":"竹本　和由","cls":"2部"},{"id":"35402","branch":"名和","name":"太田　龍輝","cls":"2部"},{"id":"35621","branch":"名和","name":"奥川　翼","cls":"2部"},{"id":"35622","branch":"名和","name":"奥川　楓","cls":"2部"},{"id":"36307","branch":"名和","name":"都築　理久","cls":"2部"},{"id":"37106","branch":"名和","name":"竹岡　翔太郎","cls":"2部"},{"id":"37608","branch":"名和","name":"大須賀　陸","cls":"2部"},{"id":"37706","branch":"名和","name":"藤井　煌輝","cls":"2部"},{"id":"37707","branch":"名和","name":"小島　千明","cls":"1部"},{"id":"38105","branch":"名和","name":"宗近　羅生","cls":"2部"},{"id":"38407","branch":"名和","name":"桑田　蒼真","cls":"2部"},{"id":"39309","branch":"名和","name":"桑田　遼祐","cls":"1部"},{"id":"39513","branch":"名和","name":"磯部　咲月","cls":"1部"},{"id":"39810","branch":"名和","name":"鷹見　花羽","cls":"2部"},{"id":"40012","branch":"名和","name":"橋本　千裕","cls":"1部"},{"id":"40013","branch":"名和","name":"橋本　一希","cls":"1部"},{"id":"40014","branch":"名和","name":"藤井　望結","cls":"1部"},{"id":"40102","branch":"名和","name":"佐野　聡一","cls":"2部"},{"id":"40408","branch":"名和","name":"花植　一真","cls":"1部"},{"id":"40703","branch":"名和","name":"譽多　律","cls":"1部"},{"id":"41016","branch":"名和","name":"関田　湖万里","cls":"1部"},{"id":"41017","branch":"名和","name":"磯部　朱里","cls":"1部"},{"id":"41303","branch":"名和","name":"本門　楓也","cls":"1部"},{"id":"41712","branch":"名和","name":"花植　大悟","cls":"1部"},{"id":"41713","branch":"名和","name":"花植　日咲","cls":"1部"},{"id":"41804","branch":"名和","name":"橋本　侑京","cls":"1部"},{"id":"41805","branch":"名和","name":"関田　灯与里","cls":"1部"},{"id":"41806","branch":"名和","name":"佐野　智哉","cls":"1部"},{"id":"42409","branch":"名和","name":"櫻井　柚花","cls":"1部"},{"id":"42909","branch":"名和","name":"大豊　彩斗","cls":"1部"},{"id":"43511","branch":"名和","name":"佐野　匠","cls":"1部"},{"id":"43512","branch":"名和","name":"浅野　隼人","cls":"2部"},{"id":"43607","branch":"名和","name":"小島　澪央理","cls":"1部"},{"id":"43608","branch":"名和","name":"松谷　茉歩","cls":"2部"},{"id":"15916","branch":"大高","name":"後藤　竜馬","cls":"2部"},{"id":"20620","branch":"大高","name":"鈴木　遥也","cls":"2部"},{"id":"23208","branch":"大高","name":"早川　洋輔","cls":"2部"},{"id":"24508","branch":"大高","name":"田村　滉基","cls":"2部"},{"id":"26411","branch":"大高","name":"本田　光希","cls":"2部"},{"id":"30011","branch":"大高","name":"坂野　大樹","cls":"2部"},{"id":"30805","branch":"大高","name":"加古　新太","cls":"2部"},{"id":"31214","branch":"大高","name":"片桐　惇志","cls":"2部"},{"id":"31615","branch":"大高","name":"山田　邦博","cls":"2部"},{"id":"32221","branch":"大高","name":"坂野　素良","cls":"2部"},{"id":"32615","branch":"大高","name":"釣谷　旭吾","cls":"2部"},{"id":"32616","branch":"大高","name":"釣谷　明里","cls":"2部"},{"id":"32617","branch":"大高","name":"坂野　聖華","cls":"2部"},{"id":"32910","branch":"大高","name":"鈴木　海人","cls":"2部"},{"id":"33008","branch":"大高","name":"杉田　強輔","cls":"2部"},{"id":"34707","branch":"大高","name":"岩田　真聖","cls":"2部"},{"id":"34708","branch":"大高","name":"栗生　拓","cls":"2部"},{"id":"35003","branch":"大高","name":"石川　隼","cls":"2部"},{"id":"39310","branch":"大高","name":"須村　悠月","cls":"2部"},{"id":"39811","branch":"大高","name":"柴田　龍之介","cls":"2部"},{"id":"40103","branch":"大高","name":"井口　冴祈","cls":"2部"},{"id":"40704","branch":"大高","name":"坂東　竜次","cls":"2部"},{"id":"41714","branch":"大高","name":"片山　波瑠","cls":"2部"},{"id":"41715","branch":"大高","name":"片山　璃子","cls":"2部"},{"id":"42410","branch":"大高","name":"辻　龍真","cls":"2部"},{"id":"42910","branch":"大高","name":"牧瀬　奏詩","cls":"2部"},{"id":"43007","branch":"大高","name":"篠田　和香","cls":"2部"},{"id":"32321","branch":"東海木曜","name":"椎野　優助","cls":"2部"},{"id":"34705","branch":"東海木曜","name":"青柳　季矢","cls":"2部"},{"id":"35708","branch":"東海木曜","name":"田中　悠生","cls":"2部"},{"id":"35712","branch":"東海木曜","name":"坂野　一慶","cls":"2部"},{"id":"35713","branch":"東海木曜","name":"虻川　紀一郎","cls":"2部"},{"id":"35714","branch":"東海木曜","name":"堀　綾太","cls":"2部"},{"id":"35907","branch":"東海木曜","name":"篠塚　颯馬","cls":"2部"},{"id":"36411","branch":"東海木曜","name":"菊本　一左","cls":"2部"},{"id":"37108","branch":"東海木曜","name":"小川　乃暖","cls":"2部"},{"id":"37109","branch":"東海木曜","name":"小川　真由","cls":"2部"},{"id":"37110","branch":"東海木曜","name":"今井　遥香","cls":"2部"},{"id":"37111","branch":"東海木曜","name":"宮本　悠希","cls":"2部"},{"id":"37205","branch":"東海木曜","name":"海冨　柚菜","cls":"2部"},{"id":"37708","branch":"東海木曜","name":"山本　琉翔","cls":"2部"},{"id":"37805","branch":"東海木曜","name":"西　竜騎","cls":"2部"},{"id":"37806","branch":"東海木曜","name":"坂口　純一","cls":"2部"},{"id":"38709","branch":"東海木曜","name":"西黒　遙眞","cls":"2部"},{"id":"38817","branch":"東海木曜","name":"虻川　友理子","cls":"1部"},{"id":"39004","branch":"東海木曜","name":"中嶋　春陽","cls":"2部"},{"id":"39220","branch":"東海木曜","name":"党　旭尭","cls":"2部"},{"id":"39221","branch":"東海木曜","name":"大村　快智","cls":"1部"},{"id":"39812","branch":"東海木曜","name":"伊藤　駿","cls":"1部"},{"id":"39813","branch":"東海木曜","name":"伊藤　優","cls":"1部"},{"id":"39814","branch":"東海木曜","name":"太田　睦士","cls":"1部"},{"id":"40015","branch":"東海木曜","name":"荒木　一翔","cls":"2部"},{"id":"40016","branch":"東海木曜","name":"新開　陽日","cls":"1部"},{"id":"40017","branch":"東海木曜","name":"久野　光誠","cls":"1部"},{"id":"40018","branch":"東海木曜","name":"岩月　美佑香","cls":"1部"},{"id":"40019","branch":"東海木曜","name":"山本　英太","cls":"1部"},{"id":"40409","branch":"東海木曜","name":"宮本　想詩","cls":"2部"},{"id":"40511","branch":"東海木曜","name":"森　彩華","cls":"1部"},{"id":"40705","branch":"東海木曜","name":"坂東　航太郎","cls":"1部"},{"id":"41114","branch":"東海木曜","name":"川上　凌太郎","cls":"2部"},{"id":"41115","branch":"東海木曜","name":"太田　圭飛","cls":"1部"},{"id":"41304","branch":"東海木曜","name":"小野　泰誠","cls":"1部"},{"id":"41305","branch":"東海木曜","name":"太田　悠士","cls":"1部"},{"id":"41403","branch":"東海木曜","name":"原田　駿介","cls":"1部"},{"id":"41404","branch":"東海木曜","name":"原田　千咲","cls":"1部"},{"id":"41405","branch":"東海木曜","name":"菅根　星","cls":"1部"},{"id":"41406","branch":"東海木曜","name":"芹川　玲央","cls":"1部"},{"id":"41504","branch":"東海木曜","name":"山下　丈侍","cls":"2部"},{"id":"41614","branch":"東海木曜","name":"小川　絢慎","cls":"1部"},{"id":"41615","branch":"東海木曜","name":"村瀬　鈴衣乃","cls":"1部"},{"id":"41616","branch":"東海木曜","name":"西岡　暖翔","cls":"2部"},{"id":"41807","branch":"東海木曜","name":"近藤　美音","cls":"1部"},{"id":"41808","branch":"東海木曜","name":"近藤　花音","cls":"1部"},{"id":"41809","branch":"東海木曜","name":"田代　千菜","cls":"1部"},{"id":"41810","branch":"東海木曜","name":"田代　百花","cls":"1部"},{"id":"42315","branch":"東海木曜","name":"小川　紗友梨","cls":"2部"},{"id":"42708","branch":"東海木曜","name":"入江　春文","cls":"1部"},{"id":"42911","branch":"東海木曜","name":"加藤　壮一郎","cls":"1部"},{"id":"42912","branch":"東海木曜","name":"加藤　光士郎","cls":"1部"},{"id":"43102","branch":"東海木曜","name":"中島　大翔","cls":"1部"},{"id":"43103","branch":"東海木曜","name":"福山　瑞姫","cls":"2部"},{"id":"43104","branch":"東海木曜","name":"福山　剛章","cls":"2部"},{"id":"43210","branch":"東海木曜","name":"山崎　柊","cls":"2部"},{"id":"43304","branch":"東海木曜","name":"久野　陸渡","cls":"1部"},{"id":"43305","branch":"東海木曜","name":"久野　晴渡","cls":"1部"},{"id":"43907","branch":"東海木曜","name":"渕側　凌央","cls":"2部"},{"id":"36409","branch":"東海土曜","name":"小林　風奏","cls":"2部"},{"id":"37113","branch":"東海土曜","name":"加藤　奈々花","cls":"2部"},{"id":"37507","branch":"東海土曜","name":"山下　瑛大","cls":"2部"},{"id":"37510","branch":"東海土曜","name":"岩月　佑樹","cls":"2部"},{"id":"37913","branch":"東海土曜","name":"加藤　圭悟","cls":"2部"},{"id":"38018","branch":"東海土曜","name":"尾野　大輔","cls":"2部"},{"id":"38019","branch":"東海土曜","name":"尾野　日々閃","cls":"2部"},{"id":"40706","branch":"東海土曜","name":"鈴木　梛月","cls":"2部"},{"id":"40907","branch":"東海土曜","name":"門田　芽依","cls":"1部"},{"id":"41116","branch":"東海土曜","name":"虻川　玄紀","cls":"2部"},{"id":"41206","branch":"東海土曜","name":"門田　俊雄","cls":"2部"},{"id":"41617","branch":"東海土曜","name":"太田　真登","cls":"1部"},{"id":"41618","branch":"東海土曜","name":"太田　光紀","cls":"1部"},{"id":"42316","branch":"東海土曜","name":"菊池　瞭太","cls":"1部"},{"id":"42411","branch":"東海土曜","name":"千葉　悠誠","cls":"1部"},{"id":"42605","branch":"東海土曜","name":"竹林　蒼央","cls":"1部"},{"id":"42709","branch":"東海土曜","name":"佐藤　武典","cls":"1部"},{"id":"42809","branch":"東海土曜","name":"浅井　愛莉","cls":"1部"},{"id":"42810","branch":"東海土曜","name":"浅井　健人","cls":"1部"},{"id":"42811","branch":"東海土曜","name":"竹林　祐亮","cls":"1部"},{"id":"43211","branch":"東海土曜","name":"加藤　光莉","cls":"2部"},{"id":"43212","branch":"東海土曜","name":"加藤　亮司","cls":"2部"},{"id":"43306","branch":"東海土曜","name":"栗本　出海","cls":"1部"},{"id":"43407","branch":"東海土曜","name":"渡邉　友翔","cls":"1部"},{"id":"43408","branch":"東海土曜","name":"渡邉　迅翔","cls":"1部"},{"id":"43609","branch":"東海土曜","name":"橋本　尉孝","cls":"2部"},{"id":"43804","branch":"東海土曜","name":"植松　悠至","cls":"1部"},{"id":"43805","branch":"東海土曜","name":"植松　佳以","cls":"1部"},{"id":"43908","branch":"東海土曜","name":"栗本　雄大","cls":"1部"},{"id":"43909","branch":"東海土曜","name":"高橋　衣里","cls":"1部"},{"id":"43910","branch":"東海土曜","name":"高橋　誠","cls":"1部"},{"id":"43911","branch":"東海土曜","name":"高橋　司","cls":"1部"},{"id":"44011","branch":"名南","name":"岡田　玲将","cls":"1部"},{"id":"44012","branch":"名南","name":"堀　玄人","cls":"1部"},{"id":"44013","branch":"名南","name":"松村　岳","cls":"2部"},{"id":"44014","branch":"名南","name":"松村　朔","cls":"2部"},{"id":"44015","branch":"大高","name":"田中　理央","cls":"2部"},{"id":"44016","branch":"東海木曜","name":"入江　啓文","cls":"1部"},{"id":"44017","branch":"東海木曜","name":"清水　ひかり","cls":"1部"},{"id":"44018","branch":"東海木曜","name":"清水　暁斗","cls":"1部"},{"id":"44019","branch":"東海木曜","name":"武信　慧","cls":"2部"},{"id":"44020","branch":"東海土曜","name":"佐藤　典子","cls":"1部"}];
+
+const BRANCHES = ['佐織','名南','春日井','名和','大高','東海木曜','東海土曜'];
+const CLS_ORDER = ['1部','2部','3部','指導員','指導補'];
+
+let currentBranch = '佐織';
+let currentCls = null;
+let status = {}; // id -> 'present'|'absent'|'none'
+let records = []; // 送信済みログ
+
+// 今日の日付
+const today = new Date();
+const dateStr = `${today.getFullYear()}年${today.getMonth()+1}月${today.getDate()}日`;
+document.getElementById('dateBadge').textContent = dateStr;
+
+// 支部ボタン生成
+function renderBranches() {
+  const el = document.getElementById('branchScroll');
+  el.innerHTML = BRANCHES.map(b =>
+    `<button class="branch-btn ${b===currentBranch?'active':''}" onclick="selectBranch('${b}')">${b}</button>`
+  ).join('');
+}
+
+// その支部のクラス一覧
+function getClasses(branch) {
+  const s = new Set(MEMBERS.filter(m=>m.branch===branch).map(m=>m.cls));
+  return CLS_ORDER.filter(c=>s.has(c));
+}
+
+// クラスタブ生成
+function renderTabs() {
+  const classes = getClasses(currentBranch);
+  if (!currentCls || !classes.includes(currentCls)) currentCls = classes[0];
+  const el = document.getElementById('classTabs');
+  el.innerHTML = classes.map(c => {
+    const members = MEMBERS.filter(m=>m.branch===currentBranch&&m.cls===c);
+    return `<div class="class-tab ${c===currentCls?'active':''}" onclick="selectClass('${c}')">
+      ${c}<span class="count">${members.length}</span>
+    </div>`;
+  }).join('');
+}
+
+// 生徒リスト生成
+function renderStudents() {
+  const filtered = MEMBERS.filter(m=>m.branch===currentBranch&&m.cls===currentCls);
+  const grid = document.getElementById('studentGrid');
+  if (!filtered.length) {
+    grid.innerHTML = '<div class="empty"><div class="empty-icon">🥋</div>該当する生徒がいません</div>';
+    return;
+  }
+  grid.innerHTML = filtered.map(m => {
+    const s = status[m.id] || 'none';
+    const label = s==='present'?'○':s==='absent'?'×':'－';
+    return `<div class="student-card ${s}" onclick="toggleStatus('${m.id}')">
+      <div class="student-info">
+        <div class="student-name">${m.name}</div>
+        <div class="student-id">${m.id}</div>
+      </div>
+      <div class="status-btn ${s}" id="btn-${m.id}">${label}</div>
+    </div>`;
+  }).join('');
+  updateSummary();
+}
+
+function updateSummary() {
+  const filtered = MEMBERS.filter(m=>m.branch===currentBranch&&m.cls===currentCls);
+  const present = filtered.filter(m=>(status[m.id]||'none')==='present').length;
+  const absent = filtered.filter(m=>(status[m.id]||'none')==='absent').length;
+  const none = filtered.length - present - absent;
+  document.getElementById('sumTotal').textContent = filtered.length;
+  document.getElementById('sumPresent').textContent = present;
+  document.getElementById('sumAbsent').textContent = none + absent;
+  document.getElementById('submitInfo').innerHTML = `<strong>${currentBranch} ${currentCls}</strong><br>出席 ${present}名 / ${filtered.length}名`;
+  document.getElementById('submitBtn').disabled = filtered.length === 0;
+}
+
+function toggleStatus(id) {
+  const cur = status[id] || 'none';
+  status[id] = cur==='none'?'present':cur==='present'?'absent':'none';
+  renderStudents();
+}
+
+function bulkMark(s) {
+  const filtered = MEMBERS.filter(m=>m.branch===currentBranch&&m.cls===currentCls);
+  filtered.forEach(m=>{ status[m.id]=s; });
+  renderStudents();
+}
+
+function selectBranch(b) {
+  currentBranch = b;
+  currentCls = null;
+  renderBranches();
+  renderTabs();
+  renderStudents();
+}
+
+function selectClass(c) {
+  currentCls = c;
+  renderTabs();
+  renderStudents();
+}
+
+function showModal() {
+  const filtered = MEMBERS.filter(m=>m.branch===currentBranch&&m.cls===currentCls);
+  const present = filtered.filter(m=>(status[m.id]||'none')==='present');
+  const absent = filtered.filter(m=>(status[m.id]||'none')==='absent');
+  const none = filtered.filter(m=>(status[m.id]||'none')==='none');
+  document.getElementById('modalTitle').textContent = `${currentBranch} ${currentCls} — 出席確認`;
+  document.getElementById('modalList').innerHTML = [
+    ...present.map(m=>`<div class="modal-row"><span>${m.name}</span><span class="modal-present">○ 出席</span></div>`),
+    ...absent.map(m=>`<div class="modal-row"><span>${m.name}</span><span class="modal-absent">× 欠席</span></div>`),
+    ...none.map(m=>`<div class="modal-row"><span>${m.name}</span><span style="color:#aaa">－ 未確認</span></div>`),
+  ].join('');
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function hideModal(e) {
+  if (!e || e.target===document.getElementById('modalOverlay'))
+    document.getElementById('modalOverlay').classList.remove('show');
+}
+
+function submitRecord() {
+  const filtered = MEMBERS.filter(m=>m.branch===currentBranch&&m.cls===currentCls);
+  const present = filtered.filter(m=>(status[m.id]||'none')==='present');
+  records.push({date:dateStr, branch:currentBranch, cls:currentCls, present:present.map(m=>m.id), timestamp:new Date().toISOString()});
+  hideModal();
+  const sub = document.getElementById('doneSub');
+  sub.innerHTML = `${dateStr}<br>${currentBranch} ${currentCls}<br>出席 <strong style="color:#7be0a0">${present.length}名</strong> を記録しました`;
+  document.getElementById('doneScreen').classList.add('show');
+  // 送信後、このクラスのステータスをクリア
+  filtered.forEach(m=>{ delete status[m.id]; });
+}
+
+function closeDone() {
+  document.getElementById('doneScreen').classList.remove('show');
+  renderStudents();
+}
+
+
+// ===== 管理機能 =====
+let members = [...MEMBERS]; // 編集可能なコピー
+
+function openAdmin() {
+  document.getElementById('adminOverlay').classList.add('show');
+  renderAdminList();
+}
+function closeAdmin() {
+  document.getElementById('adminOverlay').classList.remove('show');
+  // 出欠画面を再描画（変更を反映）
+  renderBranches(); renderTabs(); renderStudents();
+}
+
+function renderAdminList() {
+  const q = (document.getElementById('searchInput').value || '').trim();
+  const list = q
+    ? members.filter(m => m.name.includes(q) || m.id.includes(q))
+    : members;
+  const el = document.getElementById('adminList');
+  if (!list.length) { el.innerHTML = '<div style="text-align:center;padding:20px;color:#aaa">該当なし</div>'; return; }
+  el.innerHTML = list.map(m => `
+    <div class="admin-member-row">
+      <div class="admin-member-info">
+        <div class="admin-member-name">${m.name}</div>
+        <div class="admin-member-sub">${m.id} ／ ${m.branch} ／ ${m.cls}</div>
+      </div>
+      <button class="admin-edit-btn" onclick="openEdit('${m.id}')">編集</button>
+      <button class="admin-del-btn" onclick="deleteMember('${m.id}')">退会</button>
+    </div>`).join('');
+}
+
+function addMember() {
+  const id = document.getElementById('newId').value.trim();
+  const name = document.getElementById('newName').value.trim();
+  const branch = document.getElementById('newBranch').value;
+  const cls = document.getElementById('newCls').value;
+  if (!id || !name || !branch || !cls) { alert('すべての項目を入力してください'); return; }
+  if (members.find(m => m.id === id)) { alert('この会員番号はすでに登録されています'); return; }
+  members.push({ id, name, branch, cls });
+  // グローバルのMEMBERS配列も更新
+  MEMBERS.push({ id, name, branch, cls });
+  document.getElementById('newId').value = '';
+  document.getElementById('newName').value = '';
+  document.getElementById('newBranch').value = '';
+  document.getElementById('newCls').value = '';
+  renderAdminList();
+  alert(`${name} さんを追加しました`);
+}
+
+function openEdit(id) {
+  const m = members.find(m => m.id === id);
+  if (!m) return;
+  document.getElementById('editId').value = id;
+  document.getElementById('editNum').value = m.id;
+  document.getElementById('editName').value = m.name;
+  document.getElementById('editBranch').value = m.branch;
+  document.getElementById('editCls').value = m.cls;
+  document.getElementById('editOverlay').classList.add('show');
+}
+function closeEdit(e) {
+  if (!e || e.target === document.getElementById('editOverlay'))
+    document.getElementById('editOverlay').classList.remove('show');
+}
+
+function saveMember() {
+  const origId = document.getElementById('editId').value;
+  const newNum = document.getElementById('editNum').value.trim();
+  const newName = document.getElementById('editName').value.trim();
+  const newBranch = document.getElementById('editBranch').value;
+  const newCls = document.getElementById('editCls').value;
+  if (!newNum || !newName) { alert('会員番号と氏名は必須です'); return; }
+  // membersとMEMBERS両方更新
+  [members, MEMBERS].forEach(arr => {
+    const idx = arr.findIndex(m => m.id === origId);
+    if (idx !== -1) { arr[idx] = { id: newNum, name: newName, branch: newBranch, cls: newCls }; }
+  });
+  closeEdit();
+  renderAdminList();
+  alert(`${newName} さんの情報を更新しました`);
+}
+
+function deleteMember(id) {
+  const m = members.find(m => m.id === id);
+  if (!m) return;
+  if (!confirm(`${m.name} さんを退会処理しますか？\nこの操作は元に戻せません。`)) return;
+  [members, MEMBERS].forEach(arr => {
+    const idx = arr.findIndex(x => x.id === id);
+    if (idx !== -1) arr.splice(idx, 1);
+  });
+  renderAdminList();
+}
+
+// 初期描画
+renderBranches();
+renderTabs();
+renderStudents();
+</script>
+</body>
+</html>
